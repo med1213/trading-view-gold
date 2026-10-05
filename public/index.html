@@ -196,6 +196,15 @@
               <input type="text" id="alertNoteInput" placeholder="e.g. Resistance Breakout / Take Profit" class="gold-input">
             </div>
 
+            <!-- Repeat Mode Checkbox -->
+            <div class="form-group-checkbox">
+              <label class="checkbox-label" for="alertRecurringCheck">
+                <input type="checkbox" id="alertRecurringCheck" checked>
+                <span class="custom-checkbox"></span>
+                <span>🔄 <b>Repeat Alert</b> (Alert every time price crosses this level)</span>
+              </label>
+            </div>
+
             <!-- Optional Custom Chat ID -->
             <div class="form-group">
               <label class="form-label" for="alertChatIdInput">Telegram Chat ID (Optional override)</label>
@@ -209,6 +218,43 @@
               <span>Set Real-Time Gold Alert</span>
             </button>
           </form>
+        </div>
+
+        <!-- Auto Price Movement Tracker Card -->
+        <div class="section-card tracker-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon gold-glow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+              </div>
+              <div>
+                <h2>⚡ Auto Movement Tracker</h2>
+                <p>Alert every time price moves by $X</p>
+              </div>
+            </div>
+            <label class="switch-toggle" title="Toggle Auto Price Movement Alerts">
+              <input type="checkbox" id="trackerToggle">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="tracker-body" id="trackerBody">
+            <div class="tracker-step-selector">
+              <span class="form-label">Alert Every:</span>
+              <div class="step-chips">
+                <button type="button" class="chip-btn active" data-tracker-step="5">±$5</button>
+                <button type="button" class="chip-btn" data-tracker-step="10">±$10</button>
+                <button type="button" class="chip-btn" data-tracker-step="20">±$20</button>
+                <button type="button" class="chip-btn" data-tracker-step="50">±$50</button>
+              </div>
+            </div>
+            <div class="tracker-status-box" id="trackerStatusBox">
+              <span class="tracker-status-label">Status: <b id="trackerStatusText">OFF</b></span>
+              <span class="tracker-baseline" id="trackerBaselineText">Baseline: $----.--</span>
+            </div>
+          </div>
         </div>
 
         <!-- Active Alerts & Management -->

@@ -244,12 +244,17 @@
           </span>`;
         }
 
+        const repeatTag = a.isRecurring
+          ? `<span style="font-size: 0.65rem; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.2);">🔄 Every Cross ${a.triggerCount ? '(' + a.triggerCount + ')' : ''}</span>`
+          : '';
+
         return `
           <div class="alert-item-card ${isTriggered ? 'triggered' : ''}">
             <div class="alert-item-top">
-              <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 ${statusBadge}
                 <span class="alert-price-target">$${a.targetPrice.toFixed(2)}</span>
+                ${repeatTag}
               </div>
               <div class="alert-actions-group">
                 <button class="btn-small-del" onclick="window.toggleAlert('${a.id}')" title="Toggle Alert">
@@ -405,6 +410,8 @@
       const targetPrice = parseFloat(targetPriceInput.value);
       const note = alertNoteInput.value;
       const chatId = alertChatIdInput.value;
+      const recurringEl = document.getElementById('alertRecurringCheck');
+      const isRecurring = recurringEl ? recurringEl.checked : true;
 
       if (isNaN(targetPrice) || targetPrice <= 0) {
         showToast('Please enter a valid target price', 'error');
@@ -421,11 +428,13 @@
             targetPrice,
             note: note || undefined,
             chatId: chatId || undefined,
+            isRecurring,
           }),
         });
 
         if (res.ok) {
-          showToast(`✅ Alert set: Gold ${condition} $${targetPrice.toFixed(2)}`, 'success');
+          const repeatMsg = isRecurring ? ' (Repeat: Active)' : '';
+          showToast(`✅ Alert set: Gold ${condition} $${targetPrice.toFixed(2)}${repeatMsg}`, 'success');
           alertNoteInput.value = '';
           fetchAlerts();
         } else {
@@ -435,6 +444,80 @@
         showToast('Error creating alert: ' + err.message, 'error');
       }
     });
+
+    // Auto Tracker Controls
+    const trackerToggle = document.getElementById('trackerToggle');
+    const trackerStatusText = document.getElementById('trackerStatusText');
+    const trackerBaselineText = document.getElementById('trackerBaselineText');
+    let selectedTrackerStep = 5;
+
+    async function fetchTracker() {
+      try {
+        const res = await fetch('/api/alerts/tracker');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (trackerToggle) trackerToggle.checked = data.enabled;
+        if (trackerStatusText) {
+          trackerStatusText.textContent = data.enabled ? 'ACTIVE' : 'OFF';
+          trackerStatusText.className = data.enabled ? 'active' : '';
+        }
+        if (trackerBaselineText && data.lastBaselinePrice) {
+          trackerBaselineText.textContent = `Baseline: $${data.lastBaselinePrice.toFixed(2)}`;
+        }
+        selectedTrackerStep = data.stepAmount || 5;
+        document.querySelectorAll('.chip-btn[data-tracker-step]').forEach((btn) => {
+          const step = parseFloat(btn.getAttribute('data-tracker-step'));
+          btn.classList.toggle('active', step === selectedTrackerStep);
+        });
+      } catch (err) {
+        console.warn('Error fetching tracker:', err);
+      }
+    }
+
+    if (trackerToggle) {
+      trackerToggle.addEventListener('change', async () => {
+        try {
+          const res = await fetch('/api/alerts/tracker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              enabled: trackerToggle.checked,
+              stepAmount: selectedTrackerStep,
+            }),
+          });
+          if (res.ok) {
+            showToast(trackerToggle.checked ? `⚡ Auto-Tracker Enabled (±$${selectedTrackerStep})` : '🛑 Auto-Tracker Disabled', 'success');
+            fetchTracker();
+          }
+        } catch (err) {
+          showToast('Failed to toggle tracker', 'error');
+        }
+      });
+    }
+
+    document.querySelectorAll('.chip-btn[data-tracker-step]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        selectedTrackerStep = parseFloat(btn.getAttribute('data-tracker-step'));
+        document.querySelectorAll('.chip-btn[data-tracker-step]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (trackerToggle && trackerToggle.checked) {
+          await fetch('/api/alerts/tracker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              enabled: true,
+              stepAmount: selectedTrackerStep,
+            }),
+          });
+          showToast(`⚡ Step updated to ±$${selectedTrackerStep}`, 'success');
+          fetchTracker();
+        }
+      });
+    });
+
+    fetchTracker();
+    setInterval(fetchTracker, 5000);
 
     // Tab Filters
     document.querySelectorAll('.filter-btn').forEach((btn) => {

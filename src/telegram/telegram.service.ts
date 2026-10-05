@@ -36,6 +36,9 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     this.alertsService.onTrigger((alert, price) =>
       this.sendAlertNotification(alert, price),
     );
+    this.alertsService.onTrackerMove((diff, currentPrice, oldBaseline, chatId) =>
+      this.sendTrackerNotification(diff, currentPrice, oldBaseline, chatId),
+    );
     await this.initBot();
   }
 
@@ -472,14 +475,108 @@ ${lakSection}
       );
     });
 
-    this.bot.action(/del_(.+)/, async (ctx) => {
-      const alertId = ctx.match[1];
-      try {
-        await ctx.answerCbQuery('Alert deleted');
-      } catch (e) {}
-      this.alertsService.deleteAlert(alertId);
-      await ctx.replyWithHTML(`🗑️ Alert <code>${alertId}</code> deleted.`);
+    // /track command: /track <stepAmount> (e.g. /track 5 or /track 10)
+    this.bot.command('track', async (ctx) => {
+      const parts = ctx.message.text.trim().split(/\s+/).slice(1);
+      const step = parts.length > 0 ? parseFloat(parts[0]) : 5;
+
+      if (isNaN(step) || step <= 0) {
+        return ctx.replyWithHTML('⚠️ Please enter a valid step amount (e.g. <code>/track 5</code> or <code>/track 10</code>).');
+      }
+
+      const current = this.goldService.getCurrentPrice();
+      const tracker = this.alertsService.setAutoTracker(step, true, ctx.chat.id);
+      const rate = current.lak?.usdLakRate || 22570;
+      const stepLak = Math.round(step * rate * (15.244 / 31.1034768));
+
+      await ctx.replyWithHTML(
+        `⚡ <b>Auto Price Movement Tracker Activated!</b>\n\n` +
+          `🔔 Alert will send <b>every time Gold moves ±$${step.toFixed(2)}</b> (~±${stepLak.toLocaleString()} ₭ / Baht)!\n` +
+          `📍 <b>Starting Baseline Price:</b> $${current.price.toFixed(2)}\n\n` +
+          `• Rises to <b>$${(current.price + step).toFixed(2)}</b> → Alerts immediately!\n` +
+          `• Drops to <b>$${(current.price - step).toFixed(2)}</b> → Alerts immediately!\n\n` +
+          `<i>Use <code>/untrack</code> to disable auto tracking anytime.</i>`,
+      );
     });
+
+    // /untrack command
+    this.bot.command(['untrack', 'stoptrack'], async (ctx) => {
+      this.alertsService.setAutoTracker(5, false);
+      await ctx.replyWithHTML('🛑 <b>Auto Price Movement Tracker Disabled.</b>');
+    });
+
+    // /tracker status
+    this.bot.command('tracker', async (ctx) => {
+      const tracker = this.alertsService.getAutoTracker();
+      const current = this.goldService.getCurrentPrice();
+
+      if (!tracker.enabled) {
+        return ctx.replyWithHTML(
+          '⚡ <b>Auto Tracker is currently OFF.</b>\n\n' +
+            'Send <code>/track 5</code> to get notified every $5 movement in Gold price!',
+        );
+      }
+
+      const diff = current.price - tracker.lastBaselinePrice;
+      const diffStr = diff >= 0 ? `+$${diff.toFixed(2)}` : `-$${Math.abs(diff).toFixed(2)}`;
+
+      await ctx.replyWithHTML(
+        `⚡ <b>Auto Price Tracker Status:</b> 🟢 ACTIVE\n\n` +
+          `📏 <b>Step Amount:</b> Every ±$${tracker.stepAmount.toFixed(2)}\n` +
+          `📍 <b>Last Baseline Price:</b> $${tracker.lastBaselinePrice.toFixed(2)}\n` +
+          `💰 <b>Current Price:</b> $${current.price.toFixed(2)} (${diffStr} from baseline)\n\n` +
+          `• Next Up Alert: <b>$${(tracker.lastBaselinePrice + tracker.stepAmount).toFixed(2)}</b>\n` +
+          `• Next Down Alert: <b>$${(tracker.lastBaselinePrice - tracker.stepAmount).toFixed(2)}</b>`,
+      );
+    });
+  }
+
+  async sendTrackerNotification(
+    diff: number,
+    currentPrice: number,
+    baselinePrice: number,
+    chatId?: string | number,
+  ) {
+    if (!this.bot || !this.isConnected) return false;
+
+    const targetChatId = chatId || this.botConfig.defaultChatId;
+    if (!targetChatId) return false;
+
+    const isUp = diff >= 0;
+    const emoji = isUp ? '🚀 🟢' : '🔻 🔴';
+    const arrow = isUp ? '▲' : '▼';
+    const sign = isUp ? '+' : '';
+    const data = this.goldService.getCurrentPrice();
+    const rate = data.lak?.usdLakRate || 22570;
+    const estLakPrice = Math.round(currentPrice * rate);
+    const estLakBaht = Math.round((currentPrice * rate) * (15.244 / 31.1034768));
+
+    const message = `
+⚡ ${emoji} <b>GOLD PRICE MOVEMENT ALERT!</b> ${emoji} ⚡
+
+📊 <b>Movement:</b> ${arrow} <b>${sign}$${diff.toFixed(2)}</b>
+💰 <b>Current Price:</b> <code>$${currentPrice.toFixed(2)}</code> (Previous: $${baselinePrice.toFixed(2)})
+🇱🇦 <b>Lao Kip:</b> <code>${estLakBaht.toLocaleString()} ₭ / Baht</code> (<code>${estLakPrice.toLocaleString()} ₭ / oz</code>)
+⏱️ <b>Time:</b> ${new Date().toLocaleTimeString()}
+
+<i>New baseline set to $${currentPrice.toFixed(2)}. Will alert on next ±$${this.alertsService.getAutoTracker().stepAmount} move!</i>
+`;
+
+    try {
+      await this.bot.telegram.sendMessage(targetChatId, message, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback('🪙 Gold Price (LAK)', 'action_price'),
+            Markup.button.callback('📋 View Alerts', 'action_alerts'),
+          ],
+        ]),
+      });
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Error sending tracker alert: ${err.message}`);
+      return false;
+    }
   }
 
   async sendAlertNotification(alert: Alert, currentPrice: number) {
@@ -501,6 +598,7 @@ ${lakSection}
     const rate = data.lak?.usdLakRate || 22570;
     const estLakPrice = Math.round(currentPrice * rate);
     const estLakBaht = Math.round((currentPrice * rate) * (15.244 / 31.1034768));
+    const repeatBadge = alert.isRecurring ? `🔄 <b>Recurring Alert:</b> Active (#${alert.triggerCount || 1})\n` : '';
 
     const message = `
 🚨 ${conditionIcon} <b>GOLD PRICE ALERT TRIGGERED!</b> ${conditionIcon} 🚨
@@ -511,7 +609,7 @@ ${lakSection}
 🇱🇦 <b>Lao Kip Value:</b> <code>${estLakPrice.toLocaleString()} ₭ / oz</code>
 ⚖️ <b>Est. LAK / Baht:</b> <code>${estLakBaht.toLocaleString()} ₭</code>
 🎯 <b>Target Level:</b> <code>$${alert.targetPrice.toFixed(2)}</code>
-${alert.note ? `📝 <b>Note:</b> ${alert.note}\n` : ''}
+${repeatBadge}${alert.note ? `📝 <b>Note:</b> ${alert.note}\n` : ''}
 ⏱️ <b>Time:</b> ${new Date().toLocaleString()}
 
 <a href="http://localhost:${process.env.PORT || 3333}">👉 Open Gold TradingView Chart</a>

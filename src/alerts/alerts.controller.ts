@@ -25,6 +25,22 @@ export class AlertsController {
     return this.alertsService.getTriggerLogs();
   }
 
+  @Get('tracker')
+  getTracker() {
+    return this.alertsService.getAutoTracker();
+  }
+
+  @Post('tracker')
+  setTracker(
+    @Body() body: { stepAmount?: number; enabled: boolean; chatId?: string | number },
+  ) {
+    return this.alertsService.setAutoTracker(
+      body.stepAmount || 5,
+      body.enabled,
+      body.chatId,
+    );
+  }
+
   @Post()
   createAlert(@Body() dto: CreateAlertDto) {
     return this.alertsService.createAlert(dto);
