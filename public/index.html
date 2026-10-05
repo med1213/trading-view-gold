@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gold TradingView & Telegram Alert Terminal | XAU/USD</title>
+  <meta name="description" content="Real-time Gold (XAU/USD) TradingView chart, price analytics, and automated Telegram bot alert notifications.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div class="terminal-container">
+    
+    <!-- Header -->
+    <header class="terminal-header">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <div class="gold-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h1 class="brand-title">AURUM<span>TRADER</span></h1>
+            <span class="brand-subtitle">Gold XAU/USD • Live TradingView & Telegram Alerts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Ticker Bar -->
+      <div class="header-ticker-bar">
+        <div class="ticker-item main-price-card">
+          <span class="ticker-label">XAU / USD SPOT</span>
+          <div class="price-display">
+            <span class="currency-symbol">$</span>
+            <span id="livePrice" class="price-val">----.--</span>
+          </div>
+          <span id="liveChange" class="change-badge neutral">0.00%</span>
+        </div>
+
+        <div class="ticker-item lak-price-item">
+          <span class="ticker-label">🇱🇦 LAK / 1 BAHT (15.24g)</span>
+          <span id="statLakBaht" class="stat-val lak-highlight">₭ --,---,---</span>
+        </div>
+
+        <div class="ticker-item hide-mobile">
+          <span class="ticker-label">🇱🇦 LAK / 1 OUNCE</span>
+          <span id="statLakOz" class="stat-val">₭ --,---,---</span>
+        </div>
+
+        <div class="ticker-item hide-mobile">
+          <span class="ticker-label">🇱🇦 LAK / 1 GRAM (24K)</span>
+          <span id="statLakGram" class="stat-val">₭ -,---,---</span>
+        </div>
+
+        <div class="ticker-item hide-mobile">
+          <span class="ticker-label">24H HIGH / LOW</span>
+          <span id="statHighLow" class="stat-val">$---- / $----</span>
+        </div>
+      </div>
+
+      <!-- Header Controls -->
+      <div class="header-actions">
+        <div id="soundToggle" class="icon-btn active" title="Toggle Sound Chime on Alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sound-on-icon">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </div>
+
+        <button id="btnOpenBotModal" class="btn-secondary bot-status-pill">
+          <span class="status-dot disconnected" id="botDot"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tg-svg">
+            <path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-17.5 7.5a2.25 2.25 0 0 0 .126 4.167l4.5 1.5 1.5 4.5a2.25 2.25 0 0 0 3.738.746l2.454-2.454 4.542 3.407a2.25 2.25 0 0 0 3.528-1.42l3-16.5a2.25 2.25 0 0 0-2.366-2.665z"></path>
+          </svg>
+          <span id="botBtnText">Telegram Bot</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="terminal-main">
+      
+      <!-- Left Column: Chart Area -->
+      <section class="chart-section">
+        <div class="section-card chart-card">
+          <div class="card-header chart-toolbar">
+            <div class="symbol-selector">
+              <span class="active-symbol">OANDA:XAUUSD</span>
+              <span class="badge-gold">GOLD SPOT</span>
+              <div class="timeframe-group">
+                <button class="tf-btn" data-tf="1">1m</button>
+                <button class="tf-btn" data-tf="5">5m</button>
+                <button class="tf-btn active" data-tf="15">15m</button>
+                <button class="tf-btn" data-tf="60">1h</button>
+                <button class="tf-btn" data-tf="240">4h</button>
+                <button class="tf-btn" data-tf="D">1D</button>
+              </div>
+            </div>
+
+            <div class="chart-meta-actions">
+              <button id="btnRefreshPrice" class="btn-icon" title="Refresh Price Feed">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- TradingView Widget Wrapper -->
+          <div class="tradingview-widget-container" id="tvChartContainer">
+            <div id="tradingview_xauusd" class="tv-widget-box"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Alerts & Control Center -->
+      <aside class="sidebar-section">
+        
+        <!-- Quick Alert Creator Card -->
+        <div class="section-card alert-creator-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon gold-glow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </div>
+              <div>
+                <h2>Create Gold Alert</h2>
+                <p>Instant notification via Telegram Bot</p>
+              </div>
+            </div>
+          </div>
+
+          <form id="createAlertForm" class="alert-form">
+            
+            <!-- Condition Selector -->
+            <div class="form-group">
+              <label class="form-label">Alert Trigger Condition</label>
+              <div class="condition-toggle-group">
+                <label class="condition-option option-above">
+                  <input type="radio" name="alertCondition" value="ABOVE" checked>
+                  <span class="radio-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                    <span>Price Rises ABOVE (≥)</span>
+                  </span>
+                </label>
+                <label class="condition-option option-below">
+                  <input type="radio" name="alertCondition" value="BELOW">
+                  <span class="radio-card">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    <span>Price Drops BELOW (≤)</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Target Price Input & Adjusters -->
+            <div class="form-group">
+              <div class="label-with-addon">
+                <label class="form-label" for="targetPriceInput">Target Gold Price (USD)</label>
+                <span class="current-ref">Current: <b id="formCurrentPrice">$----.--</b></span>
+              </div>
+              <div class="price-input-wrapper">
+                <span class="price-prefix">$</span>
+                <input type="number" id="targetPriceInput" step="0.1" placeholder="2750.00" required class="gold-input">
+              </div>
+              
+              <!-- Quick Offset Buttons -->
+              <div class="quick-step-buttons">
+                <button type="button" class="btn-step" data-step="-25">-$25</button>
+                <button type="button" class="btn-step" data-step="-10">-$10</button>
+                <button type="button" class="btn-step" data-step="-5">-$5</button>
+                <button type="button" class="btn-step" data-step="5">+$5</button>
+                <button type="button" class="btn-step" data-step="10">+$10</button>
+                <button type="button" class="btn-step" data-step="25">+$25</button>
+              </div>
+            </div>
+
+            <!-- Note / Label -->
+            <div class="form-group">
+              <label class="form-label" for="alertNoteInput">Alert Label / Note (Optional)</label>
+              <input type="text" id="alertNoteInput" placeholder="e.g. Resistance Breakout / Take Profit" class="gold-input">
+            </div>
+
+            <!-- Optional Custom Chat ID -->
+            <div class="form-group">
+              <label class="form-label" for="alertChatIdInput">Telegram Chat ID (Optional override)</label>
+              <input type="text" id="alertChatIdInput" placeholder="Leave blank to use default bot chat" class="gold-input text-mono">
+            </div>
+
+            <button type="submit" id="btnSubmitAlert" class="btn-primary w-100">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+              <span>Set Real-Time Gold Alert</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Active Alerts & Management -->
+        <div class="section-card alerts-list-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon blue-glow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </div>
+              <div>
+                <h2>Active Alerts (<span id="activeAlertsCount">0</span>)</h2>
+                <p>Monitored continuously 24/7</p>
+              </div>
+            </div>
+
+            <div class="tab-filters">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="ACTIVE">Active</button>
+              <button class="filter-btn" data-filter="TRIGGERED">Triggered</button>
+            </div>
+          </div>
+
+          <div class="alerts-scroll-area" id="alertsListContainer">
+            <div class="empty-state">
+              <div class="empty-icon">🔔</div>
+              <h3>No Gold Alerts Set</h3>
+              <p>Create an alert above or use <code>/alert</code> in Telegram bot to get instant notifications.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Triggered History / Log -->
+        <div class="section-card logs-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div class="card-icon emerald-glow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <h2>Recent Trigger Log</h2>
+                <p>Real-time execution log</p>
+              </div>
+            </div>
+          </div>
+          <div class="logs-scroll-area" id="logsListContainer">
+            <div class="empty-log-state">No triggers recorded in this session.</div>
+          </div>
+        </div>
+
+      </aside>
+    </main>
+  </div>
+
+  <!-- Telegram Bot Settings Modal -->
+  <div id="botModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="card-title-group">
+          <div class="card-icon tg-glow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-17.5 7.5a2.25 2.25 0 0 0 .126 4.167l4.5 1.5 1.5 4.5a2.25 2.25 0 0 0 3.738.746l2.454-2.454 4.542 3.407a2.25 2.25 0 0 0 3.528-1.42l3-16.5a2.25 2.25 0 0 0-2.366-2.665z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2>Telegram Bot Integration</h2>
+            <p>Connect your Telegram bot to receive instant Gold price alerts</p>
+          </div>
+        </div>
+        <button id="btnCloseBotModal" class="btn-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Setup Guide Steps -->
+        <div class="setup-steps-guide">
+          <h3>⚡ Quick 2-Minute Setup:</h3>
+          <ol>
+            <li>Open Telegram and message <b><a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a></b>.</li>
+            <li>Send <code>/newbot</code>, choose a name and username to receive your <b>Bot Token</b>.</li>
+            <li>Paste your <b>Bot Token</b> below and click <b>Connect Bot</b>.</li>
+            <li>Start your bot on Telegram (press <code>/start</code>) or enter your Chat ID.</li>
+          </ol>
+        </div>
+
+        <form id="botConfigForm" class="bot-form">
+          <div class="form-group">
+            <label class="form-label" for="botTokenInput">Telegram Bot Token</label>
+            <input type="password" id="botTokenInput" placeholder="e.g. 1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ" class="gold-input text-mono">
+            <small class="form-hint">Provided by @BotFather</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="botDefaultChatIdInput">Default Chat ID (Optional)</label>
+            <input type="text" id="botDefaultChatIdInput" placeholder="e.g. 987654321 or @yourchannel" class="gold-input text-mono">
+            <small class="form-hint">Your personal Telegram ID or Channel/Group ID</small>
+          </div>
+
+          <div class="modal-status-banner" id="modalBotStatusBanner">
+            <span class="status-dot disconnected"></span>
+            <span id="modalBotStatusText">Checking connection...</span>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="btnTestTelegramAlert" class="btn-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+              </svg>
+              <span>Send Test Notification</span>
+            </button>
+            <button type="submit" id="btnSaveBotConfig" class="btn-primary">
+              <span>Save & Connect</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- TradingView Library Script -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
